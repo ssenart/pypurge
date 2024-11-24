@@ -8,10 +8,15 @@ import logging
 def main() -> int:
     """Main function"""
 
+    # Create handlers
+    file_handler = logging.FileHandler("pypurge.log")  # Logs to a file
+    stdout_handler = logging.StreamHandler()      # Logs to stdout
+
+    # Configure logging
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
-        handlers=[logging.StreamHandler()]
+        handlers=[file_handler, stdout_handler]
     )
 
     parser = argparse.ArgumentParser()
