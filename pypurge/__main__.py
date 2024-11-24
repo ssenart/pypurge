@@ -7,10 +7,17 @@ import logging
 
 def main() -> int:
     """Main function"""
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--version",
                         action="version",
-                        version=f"purge {pypurge.__version__}")
+                        version=f"pypurge {pypurge.__version__}")
     parser.add_argument("-d", "--directory",
                         required=True,
                         help="Root directory to purge")
@@ -29,7 +36,7 @@ def main() -> int:
     if args.no_dry_run:
         logging.info("Real deletion mode activated.")
     else:
-        print("Dry run mode. No files will be deleted.")
+        logging.info("Dry run mode. No files will be deleted.")
 
     try:
         pypurge.purge(args.directory, args.regex, args.time_span, not args.no_dry_run)
