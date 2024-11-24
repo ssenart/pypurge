@@ -3,6 +3,7 @@ import re
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+from pypurge.version import __version__  # noqa: F401
 
 
 def purge(directory: str, regex: str, time_span: str, dry_run: bool = True):
