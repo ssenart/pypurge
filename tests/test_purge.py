@@ -51,3 +51,27 @@ def test_purge(setup_teardown):
     assert not Path("tests/data/file3.txt").exists()
     assert not Path("tests/data/file4.txt").exists()
     assert not Path("tests/data/file5.txt").exists()
+
+
+def test_purge_removes_empty_directories():
+    base = Path("tests/data_dirs")
+    try:
+        old = datetime.datetime.now() - datetime.timedelta(days=10)
+        (base / "a" / "b").mkdir(parents=True)
+        (base / "keep").mkdir(parents=True)
+        (base / "a" / "b" / "old.txt").write_text("x")
+        os.utime(base / "a" / "b" / "old.txt", (old.timestamp(), old.timestamp()))
+        (base / "keep" / "new.txt").write_text("x")
+        (base / "empty_recent").mkdir()
+
+        # Dry run changes nothing
+        pypurge.purge(str(base), r".*\.txt$", "3D", dry_run=True)
+        assert (base / "a" / "b" / "old.txt").exists()
+
+        pypurge.purge(str(base), r".*\.txt$", "3D", dry_run=False)
+        assert not (base / "a").exists()  # emptied directories removed bottom-up
+        assert (base / "keep" / "new.txt").exists()
+        assert (base / "empty_recent").exists()  # grace period
+        assert base.exists()  # root is never removed
+    finally:
+        shutil.rmtree(base, ignore_errors=True)

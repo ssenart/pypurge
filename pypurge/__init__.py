@@ -36,7 +36,12 @@ def purge(directory: str, regex: str, time_span: str, dry_run: bool = True):
     cutoff_time = datetime.now() - delta
     pattern = re.compile(regex)
 
-    for root, _, files in os.walk(directory):
+    root_dir = Path(directory)
+    deleted = set()  # Files deleted (or that would be deleted in dry run)
+    removed_dirs = set()  # Directories removed (or that would be removed in dry run)
+
+    # Bottom-up walk so that a directory is examined after its children
+    for root, _, files in os.walk(directory, topdown=False):
         for file in files:
             file_path = Path(root) / file
             try:
@@ -49,6 +54,7 @@ def purge(directory: str, regex: str, time_span: str, dry_run: bool = True):
 
                 # Check if the file is older than the cutoff time
                 if creation_time < cutoff_time:
+                    deleted.add(file_path)
                     if dry_run:
                         logging.info(f"[DRY RUN] Would delete: {file_path}")
                     else:
@@ -57,3 +63,29 @@ def purge(directory: str, regex: str, time_span: str, dry_run: bool = True):
             except Exception as e:
                 logging.error(f"Error processing file {file_path}: {e}")
                 raise e
+
+        # Remove the directory if the purge left it empty (never the root directory)
+        dir_path = Path(root)
+        if dir_path == root_dir:
+            continue
+        try:
+            remaining = [
+                entry for entry in dir_path.iterdir()
+                if entry not in deleted and entry not in removed_dirs
+            ]
+            if remaining:
+                continue
+            # Directories that were already empty are only removed after a grace period,
+            # in case a writer (camera, FTP upload) has just created them.
+            touched = any(d.parent == dir_path for d in deleted | removed_dirs)
+            if not touched and datetime.fromtimestamp(dir_path.stat().st_mtime) > datetime.now() - timedelta(days=1):
+                continue
+            removed_dirs.add(dir_path)
+            if dry_run:
+                logging.info(f"[DRY RUN] Would remove empty directory: {dir_path}")
+            else:
+                logging.info(f"Removing empty directory: {dir_path}")
+                dir_path.rmdir()
+        except Exception as e:
+            logging.error(f"Error processing directory {dir_path}: {e}")
+            raise e
